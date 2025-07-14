@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>EQS RAG Agent</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f0f2f5;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #343541;
+      color: white;
+      padding: 10px 20px;
+    }
+
+    .auth-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .auth-controls input,
+    .auth-controls button {
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: none;
+    }
+
+    .auth-controls input {
+      border: 1px solid #ccc;
+    }
+
+    .auth-controls button {
+      background-color: #10a37f;
+      color: white;
+      cursor: pointer;
+    }
+
+    .layout {
+      display: flex;
+      height: calc(100vh - 50px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 250px;
+      background-color: #202123;
+      color: white;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .sidebar h3 {
+      margin-top: 0;
+    }
+
+    .sidebar button {
+      width: 100%;
+      margin-top: 10px;
+      background-color: #444654;
+      color: white;
+      border: none;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .history-messages {
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
+    .history-item {
+      margin-bottom: 8px;
+      padding: 6px;
+      background: #333;
+      border-radius: 4px;
+    }
+
+    /* Main Chat Area */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      background-color: #ffffff;
+    }
+
+    .chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chat-box {
+      flex: 1;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 15px;
+      overflow-y: auto;
+      background-color: #f9f9f9;
+      margin: 15px 0;
+    }
+
+    .msg {
+      margin-bottom: 12px;
+    }
+
+    .user {
+      color: #0b5ed7;
+      font-weight: bold;
+    }
+
+    .agent {
+      color: #0ca678;
+      font-weight: bold;
+    }
+
+    .input-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .input-area input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    .input-area button {
+      padding: 10px 20px;
+      border: none;
+      background-color: #10a37f;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .file-upload {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div><strong>EQS RAG Agent</strong></div>
+    <div class="auth-controls">
+      <input type="text" id="username" placeholder="Username" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="register()">Register</button>
+      <button onclick="login()">Login</button>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- Layout -->
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <h3>📜 Chat History</h3>
+      <button onclick="getHistory()">Load History</button>
+      <div class="history-messages" id="historyBox"></div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="main">
+      <div class="chat-header">
+        <h2>💬 Chat</h2>
+        <button onclick="refreshChat()" style="padding:6px 12px; background:#eee; border-radius:5px; border:none; cursor:pointer;">🔄 Refresh Chat</button>
+      </div>
+
+      <div class="chat-box" id="chatBox"></div>
+
+      <div class="input-area">
+        <input type="text" id="question" placeholder="Ask a question..." />
+        <button onclick="ask()">Ask</button>
+      </div>
+
+      <div class="file-upload">
+        <input type="file" id="fileInput" accept=".pdf,.txt,.docx,.xlsx" />
+        <button onclick="uploadFile()">Upload File</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    const apiBase = "http://localhost:8000";
+    let sessionToken = "";
+
+    function showMessage(sender, message) {
+      const box = document.getElementById("chatBox");
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("msg");
+      msgDiv.innerHTML = `<span class="${sender}">${sender}:</span> ${message}`;
+      box.appendChild(msgDiv);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function refreshChat() {
+      document.getElementById("chatBox").innerHTML = "";
+    }
+
+    async function register() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      const res = await fetch(`${apiBase}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+      alert(data.message || JSON.stringify(data));
+    }
+
+    async function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      const res = await fetch(`${apiBase}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+      if (data.session_token) {
+        sessionToken = data.session_token;
+        alert("✅ Logged in successfully!");
+      } else {
+        alert(data.detail || "Login failed");
+      }
+    }
+
+    async function logout() {
+      if (!sessionToken) return alert("You're not logged in.");
+      const res = await fetch(`${apiBase}/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_token: sessionToken })
+      });
+
+      const data = await res.json();
+      alert(data.message);
+      sessionToken = "";
+    }
+
+    async function ask() {
+      if (!sessionToken) return alert("Login first!");
+
+      const question = document.getElementById("question").value;
+      if (!question) return;
+
+      showMessage("user", question);
+
+      const res = await fetch(`${apiBase}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, session_token: sessionToken })
+      });
+
+      const data = await res.json();
+      showMessage("agent", data.answer || "No response");
+    }
+
+    async function getHistory() {
+      if (!sessionToken) return alert("Login first!");
+
+      const res = await fetch(`${apiBase}/chat-history?session_token=${sessionToken}`);
+      const data = await res.json();
+
+      const historyBox = document.getElementById("historyBox");
+      historyBox.innerHTML = "";
+      for (const msg of data) {
+        showMessage(msg.sender, msg.message);
+      }
+    }
+
+    async function uploadFile() {
+      const fileInput = document.getElementById("fileInput");
+      if (!sessionToken || !fileInput.files.length) return alert("Login and select a file first!");
+
+      const formData = new FormData();
+      formData.append("session_token", sessionToken);
+      formData.append("file", fileInput.files[0]);
+
+      const res = await fetch(`${apiBase}/upload-and-embed`, {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await res.json();
+      alert(data.message || JSON.stringify(data));
+    }
+  </script>
+</body>
+</html>
