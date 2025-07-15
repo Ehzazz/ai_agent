@@ -236,6 +236,18 @@ def embed_ppt(file_obj, metadata: dict = {}):
         pages = loader.load()
     finally:
         os.unlink(tmp.name)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    docs = text_splitter.split_documents(pages)
+    for doc in docs:
+        doc.metadata.update(metadata)
+    try:
+        vectorstore.add_documents(docs)
+    except ValueError as e:
+        if "Collection not found" in str(e):
+            vectorstore.create_tables_if_not_exists()
+            vectorstore.add_documents(docs)
+        else:
+            raise
 
 def get_file_type(filename, content):
     ext = filename.lower().split('.')[-1]

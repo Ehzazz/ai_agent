@@ -125,6 +125,12 @@ async def upload_and_embed(session_token: str = Form(...), file: UploadFile = Fi
                 "user_id": user_id,
                 "file_name": filename
             })
+        elif file_type == 'ppt':
+            from main import embed_ppt
+            embed_ppt(io.BytesIO(content), metadata={
+                "user_id": user_id,
+                "file_name": filename
+            })
         return {"message": f"✅ File '{filename}' uploaded & embedded successfully."}
     except Exception as e:
         import traceback
@@ -212,6 +218,7 @@ def process_file(filename, content):
             tmp.write(content)
             tmp.flush()
             tmp_path = tmp.name
+        # File is now closed and can be read by the loader
         try:
             loader = UnstructuredPowerPointLoader(tmp_path)
             pages = loader.load()
@@ -219,7 +226,7 @@ def process_file(filename, content):
             os.remove(tmp_path)
         return pages
     else:
-        raise ValueError("Only PDF, DOCX, and PPT/PPTX files are supported at this time.")
+        raise ValueError("Only PDF, DOCX, and PPTX files are supported at this time. Please convert .ppt files to .pptx before uploading.")
 
 def get_file_type(filename, content):
     ext = filename.lower().split('.')[-1]
@@ -227,7 +234,7 @@ def get_file_type(filename, content):
         return 'pdf'
     elif ext == 'docx':
         return 'docx'
-    elif ext in ['ppt', 'pptx']:
+    elif ext == 'pptx':
         return 'ppt'
     else:
         return 'unknown'
