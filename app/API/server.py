@@ -15,7 +15,7 @@ from sqlalchemy.future import select
 from .db import get_db
 from .models import User, Session, UserFile, ChatHistory
 from main import rag_agent, embed_pdf
-from langchain_community.document_loaders import PyPDFLoader, TextLoader, UnstructuredWordDocumentLoader, UnstructuredExcelLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, UnstructuredWordDocumentLoader, UnstructuredExcelLoader, UnstructuredPowerPointLoader
 
 app = FastAPI(title="EQS RAG Agent")
 
@@ -98,8 +98,8 @@ async def upload_and_embed(session_token: str = Form(...), file: UploadFile = Fi
     content = await file.read()
 
     file_type = get_file_type(filename, content)
-    if file_type != 'pdf':
-        return JSONResponse({"message": "Only PDF files are supported at this time."}, status_code=400)
+    if file_type not in ['pdf', 'docx', 'ppt']:
+        return JSONResponse({"message": "Only PDF, DOCX, and PPT/PPTX files are supported at this time."}, status_code=400)
 
     user_file = UserFile(
         user_id=user_id,
@@ -113,10 +113,18 @@ async def upload_and_embed(session_token: str = Form(...), file: UploadFile = Fi
     try:
         pages = process_file(filename, content)
         import io
-        embed_pdf(io.BytesIO(content), metadata={
-            "user_id": user_id,
-            "file_name": filename
-        })
+        if file_type == 'pdf':
+            from main import embed_pdf
+            embed_pdf(io.BytesIO(content), metadata={
+                "user_id": user_id,
+                "file_name": filename
+            })
+        elif file_type == 'docx':
+            from main import embed_docx
+            embed_docx(io.BytesIO(content), metadata={
+                "user_id": user_id,
+                "file_name": filename
+            })
         return {"message": f"✅ File '{filename}' uploaded & embedded successfully."}
     except Exception as e:
         import traceback
@@ -137,7 +145,8 @@ async def query_rag(data: QuestionRequest, db: AsyncSession = Depends(get_db)):
     result = await asyncio.to_thread(rag_agent.invoke, {
         "question": data.question,
         "context_docs": [],
-        "answer": ""
+        "answer": "",
+        "user_id": session.user_id  # Pass user_id to the agent
     })
     answer = result["answer"]
 
@@ -185,12 +194,40 @@ def process_file(filename, content):
         finally:
             os.unlink(tmp.name)  # Manually delete the temp file
         return pages
+    elif file_type == 'docx':
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+            tmp.write(content)
+            tmp.flush()
+            tmp_path = tmp.name
+        try:
+            loader = UnstructuredWordDocumentLoader(tmp_path)
+            pages = loader.load()
+        finally:
+            os.remove(tmp_path)
+        return pages
+    elif file_type == 'ppt':
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pptx") as tmp:
+            tmp.write(content)
+            tmp.flush()
+            tmp_path = tmp.name
+        try:
+            loader = UnstructuredPowerPointLoader(tmp_path)
+            pages = loader.load()
+        finally:
+            os.remove(tmp_path)
+        return pages
     else:
-        raise ValueError("Only PDF files are supported at this time.")
+        raise ValueError("Only PDF, DOCX, and PPT/PPTX files are supported at this time.")
 
 def get_file_type(filename, content):
-    # Only allow PDF
-    if content[:4] == b'%PDF':
+    ext = filename.lower().split('.')[-1]
+    if ext == 'pdf' and content[:4] == b'%PDF':
         return 'pdf'
+    elif ext == 'docx':
+        return 'docx'
+    elif ext in ['ppt', 'pptx']:
+        return 'ppt'
     else:
         return 'unknown'
