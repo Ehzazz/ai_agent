@@ -1,2 +1,6 @@
 venv/
 __pycache__/
+.env
+data/
+uploads/
+API/__pycache__/
