@@ -2,307 +2,346 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>EQS RAG Agent</title>
+  <title>RAG Chatbot</title>
   <style>
     body {
       margin: 0;
       font-family: 'Segoe UI', sans-serif;
       background-color: #f0f2f5;
     }
-
-    /* Top Bar */
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: #343541;
-      color: white;
-      padding: 10px 20px;
-    }
-
-    .auth-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .auth-controls input,
-    .auth-controls button {
-      padding: 6px 8px;
-      border-radius: 4px;
-      border: none;
-    }
-
-    .auth-controls input {
-      border: 1px solid #ccc;
-    }
-
-    .auth-controls button {
-      background-color: #10a37f;
-      color: white;
-      cursor: pointer;
-    }
-
-    .layout {
-      display: flex;
-      height: calc(100vh - 50px);
-    }
-
-    /* Sidebar */
-    .sidebar {
-      width: 250px;
-      background-color: #202123;
-      color: white;
-      padding: 15px;
-      overflow-y: auto;
-    }
-
-    .sidebar h3 {
-      margin-top: 0;
-    }
-
-    .sidebar button {
-      width: 100%;
-      margin-top: 10px;
-      background-color: #444654;
-      color: white;
-      border: none;
-      padding: 10px;
-      cursor: pointer;
-    }
-
-    .history-messages {
-      margin-top: 15px;
-      font-size: 14px;
-    }
-
-    .history-item {
-      margin-bottom: 8px;
-      padding: 6px;
-      background: #333;
-      border-radius: 4px;
-    }
-
-    /* Main Chat Area */
-    .main {
-      flex: 1;
+    .centered {
       display: flex;
       flex-direction: column;
-      padding: 20px;
-      background-color: #ffffff;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
     }
-
+    .login-box, .chat-box-main {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      padding: 32px 24px;
+      min-width: 320px;
+      max-width: 400px;
+      width: 100%;
+    }
+    .login-box h2 {
+      margin-bottom: 24px;
+      color: #10a37f;
+      text-align: center;
+    }
+    .login-box input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    .login-box button {
+      width: 100%;
+      padding: 10px;
+      background: #10a37f;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
     .chat-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-    }
-
-    .chat-box {
-      flex: 1;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 15px;
-      overflow-y: auto;
-      background-color: #f9f9f9;
-      margin: 15px 0;
-    }
-
-    .msg {
       margin-bottom: 12px;
     }
-
-    .user {
+    .chat-header .user-info {
+      color: #10a37f;
+      font-weight: bold;
+    }
+    .chat-header button {
+      background: #e74c3c;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 16px;
+      cursor: pointer;
+    }
+    .chat-box {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 16px;
+      height: 350px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+      border: 1px solid #eee;
+    }
+    .msg {
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+    .msg .sender {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    .msg.user .sender {
       color: #0b5ed7;
-      font-weight: bold;
     }
-
-    .agent {
-      color: #0ca678;
-      font-weight: bold;
+    .msg.agent .sender {
+      color: #10a37f;
     }
-
+    .msg .text {
+      background: #fff;
+      border-radius: 6px;
+      padding: 8px 12px;
+      border: 1px solid #e0e0e0;
+      font-size: 15px;
+      max-width: 80%;
+      align-self: flex-start;
+    }
+    .msg.user .text {
+      background: #e6f7ff;
+      align-self: flex-end;
+    }
     .input-area {
       display: flex;
-      align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
-
     .input-area input[type="text"] {
       flex: 1;
       padding: 10px;
       border: 1px solid #ccc;
       border-radius: 6px;
+      font-size: 15px;
     }
-
     .input-area button {
       padding: 10px 20px;
-      border: none;
-      background-color: #10a37f;
+      background: #10a37f;
       color: white;
+      border: none;
       border-radius: 6px;
       cursor: pointer;
+      font-size: 15px;
     }
-
-    .file-upload {
-      margin-top: 10px;
+    .error {
+      color: #e74c3c;
+      margin-bottom: 10px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <!-- Top Bar -->
-  <div class="top-bar">
-    <div><strong>RAG Agent</strong></div>
-    <div class="auth-controls">
-      <input type="text" id="username" placeholder="Username" />
-      <input type="password" id="password" placeholder="Password" />
-      <button onclick="register()">Register</button>
+  <div id="loginView" class="centered">
+    <div class="login-box">
+      <h2>Login to RAG Chatbot</h2>
+      <div class="error" id="loginError"></div>
+      <input type="text" id="loginUsername" placeholder="Username" />
+      <input type="password" id="loginPassword" placeholder="Password" />
       <button onclick="login()">Login</button>
-      <button onclick="logout()">Logout</button>
+      <button onclick="registerUser()" style="background:#0b5ed7; margin-top:8px;">Register</button>
     </div>
   </div>
 
-  <!-- Layout -->
-  <div class="layout">
-    <!-- Sidebar -->
-    <div class="sidebar">
-      <h3>📜 Chat History</h3>
-      <button onclick="getHistory()">Load History</button>
-      <div class="history-messages" id="historyBox"></div>
-    </div>
-
-    <!-- Main Chat Area -->
-    <div class="main">
+  <div id="chatView" class="centered" style="display:none;">
+    <div class="chat-box-main" style="min-width:350px;max-width:500px;width:100%;">
       <div class="chat-header">
-        <h2>💬 Chat</h2>
-        <button onclick="refreshChat()" style="padding:6px 12px; background:#eee; border-radius:5px; border:none; cursor:pointer;">🔄 Refresh Chat</button>
+        <span class="user-info">👤 <span id="displayUsername"></span></span>
+        <div>
+          <button onclick="showHistory()" style="background:#0b5ed7;margin-right:8px;">Chat History</button>
+          <button onclick="refreshChat()" style="background:#aaa;">Refresh</button>
+          <button onclick="logout()" style="background:#e74c3c;margin-left:8px;">Logout</button>
+        </div>
       </div>
-
       <div class="chat-box" id="chatBox"></div>
-
       <div class="input-area">
-        <input type="text" id="question" placeholder="Ask a question..." />
-        <button onclick="ask()">Ask</button>
+        <input type="text" id="question" placeholder="Type your message..." />
+        <button onclick="ask()">Send</button>
       </div>
-
-      <div class="file-upload">
-        <input type="file" id="fileInput" accept=".pdf,.docx,.pptx" />
-        <button onclick="uploadFile()">Upload File</button>
+      <div class="input-area">
+        <button id="uploadBtn" style="background:#10a37f;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:18px;">&#8682;</span> Upload
+        </button>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.ppt,.pptx" style="display:none;" />
+        <div id="uploadStatus" style="margin-top:8px;font-size:14px;"></div>
       </div>
     </div>
   </div>
 
-  <!-- Script -->
   <script>
     const apiBase = "http://localhost:8000";
     let sessionToken = "";
+    let username = "";
+
+    function showLogin() {
+      document.getElementById("loginView").style.display = "flex";
+      document.getElementById("chatView").style.display = "none";
+      document.getElementById("loginUsername").value = "";
+      document.getElementById("loginPassword").value = "";
+      document.getElementById("loginError").innerText = "";
+    }
+
+    function showChat() {
+      document.getElementById("loginView").style.display = "none";
+      document.getElementById("chatView").style.display = "flex";
+      document.getElementById("displayUsername").innerText = username;
+      refreshChat();
+    }
+
+    async function login() {
+      username = document.getElementById("loginUsername").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      if (!username || !password) {
+        document.getElementById("loginError").innerText = "Please enter username and password.";
+        return;
+      }
+      const res = await fetch(`${apiBase}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (data.session_token) {
+        sessionToken = data.session_token;
+        showChat();
+      } else {
+        document.getElementById("loginError").innerText = data.detail || "Login failed";
+      }
+    }
+
+    async function registerUser() {
+      const regUsername = document.getElementById("loginUsername").value.trim();
+      const regPassword = document.getElementById("loginPassword").value;
+      if (!regUsername || !regPassword) {
+        document.getElementById("loginError").innerText = "Please enter username and password to register.";
+        return;
+      }
+      const res = await fetch(`${apiBase}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: regUsername, password: regPassword })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById("loginError").style.color = '#10a37f';
+        document.getElementById("loginError").innerText = data.message || "Registration successful! You can now log in.";
+      } else {
+        document.getElementById("loginError").style.color = '#e74c3c';
+        document.getElementById("loginError").innerText = data.detail || "Registration failed.";
+      }
+    }
+
+    function logout() {
+      sessionToken = "";
+      username = "";
+      showLogin();
+    }
 
     function showMessage(sender, message) {
       const box = document.getElementById("chatBox");
       const msgDiv = document.createElement("div");
-      msgDiv.classList.add("msg");
-      msgDiv.innerHTML = `<span class="${sender}">${sender}:</span> ${message}`;
+      msgDiv.classList.add("msg", sender);
+      msgDiv.innerHTML = `<span class="sender">${sender === 'user' ? username : 'AI Agent'}:</span><span class="text">${message}</span>`;
       box.appendChild(msgDiv);
       box.scrollTop = box.scrollHeight;
+    }
+
+    async function loadHistory() {
+      if (!sessionToken) return;
+      const res = await fetch(`${apiBase}/chat-history?session_token=${sessionToken}`);
+      const data = await res.json();
+      const historyBox = document.getElementById("historyBox");
+      historyBox.innerHTML = "";
+      data.forEach(msg => {
+        const div = document.createElement("div");
+        div.style.marginBottom = "8px";
+        div.style.padding = "6px 8px";
+        div.style.borderRadius = "6px";
+        div.style.background = msg.sender === 'user' ? '#0b5ed7' : '#10a37f';
+        div.style.color = '#fff';
+        div.innerHTML = `<b>${msg.sender === 'user' ? username : 'AI Agent'}:</b> ${msg.message}`;
+        historyBox.appendChild(div);
+      });
     }
 
     function refreshChat() {
       document.getElementById("chatBox").innerHTML = "";
     }
 
-    async function register() {
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-
-      const res = await fetch(`${apiBase}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-
+    async function showHistory() {
+      if (!sessionToken) return;
+      const res = await fetch(`${apiBase}/chat-history?session_token=${sessionToken}`);
       const data = await res.json();
-      alert(data.message || JSON.stringify(data));
-    }
-
-    async function login() {
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-
-      const res = await fetch(`${apiBase}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+      const chatBox = document.getElementById("chatBox");
+      chatBox.innerHTML = "";
+      data.forEach(msg => {
+        showMessage(msg.sender, msg.message);
       });
-
-      const data = await res.json();
-      if (data.session_token) {
-        sessionToken = data.session_token;
-        alert("✅ Logged in successfully!");
-      } else {
-        alert(data.detail || "Login failed");
-      }
-    }
-
-    async function logout() {
-      if (!sessionToken) return alert("You're not logged in.");
-      const res = await fetch(`${apiBase}/logout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_token: sessionToken })
-      });
-
-      const data = await res.json();
-      alert(data.message);
-      sessionToken = "";
     }
 
     async function ask() {
-      if (!sessionToken) return alert("Login first!");
-
+      if (!sessionToken) return;
       const question = document.getElementById("question").value;
       if (!question) return;
-
       showMessage("user", question);
-
+      document.getElementById("question").value = "";
       const res = await fetch(`${apiBase}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, session_token: sessionToken })
       });
-
       const data = await res.json();
       showMessage("agent", data.answer || "No response");
     }
 
-    async function getHistory() {
-      if (!sessionToken) return alert("Login first!");
-
-      const res = await fetch(`${apiBase}/chat-history?session_token=${sessionToken}`);
-      const data = await res.json();
-
-      const historyBox = document.getElementById("historyBox");
-      historyBox.innerHTML = "";
-      for (const msg of data) {
-        showMessage(msg.sender, msg.message);
-      }
-    }
-
     async function uploadFile() {
       const fileInput = document.getElementById("fileInput");
-      if (!sessionToken || !fileInput.files.length) return alert("Login and select a file first!");
-
+      const uploadStatus = document.getElementById("uploadStatus");
+      if (!sessionToken || !fileInput.files.length) {
+        uploadStatus.style.color = '#e74c3c';
+        uploadStatus.innerText = "Please login and select a file first.";
+        return;
+      }
       const formData = new FormData();
       formData.append("session_token", sessionToken);
       formData.append("file", fileInput.files[0]);
-
+      uploadStatus.innerText = "Uploading...";
+      uploadStatus.style.color = '#333';
       const res = await fetch(`${apiBase}/upload-and-embed`, {
         method: "POST",
         body: formData
       });
-
       const data = await res.json();
-      alert(data.message || JSON.stringify(data));
+      if (res.ok) {
+        uploadStatus.style.color = '#10a37f';
+        uploadStatus.innerText = data.message || "File uploaded successfully!";
+      } else {
+        uploadStatus.style.color = '#e74c3c';
+        uploadStatus.innerText = data.message || "Upload failed.";
+      }
+      fileInput.value = "";
     }
+
+    document.getElementById("uploadBtn").onclick = function() {
+      document.getElementById("fileInput").click();
+    };
+
+    document.getElementById("fileInput").onchange = function() {
+      uploadFile();
+    };
+
+    // Enter key in chat input triggers ask()
+    document.getElementById("question").addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        ask();
+      }
+    });
+
+    // On load, show login
+    showLogin();
   </script>
 </body>
 </html>
+
