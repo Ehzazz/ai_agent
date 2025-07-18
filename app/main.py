@@ -16,6 +16,8 @@ from llm import GeminiLLM  # You must have a GeminiLLM class implemented
 import tempfile
 import io
 
+from langchain_core.documents import Document
+
 
 from utils.vectorstore_utils import get_vectorstore
 
