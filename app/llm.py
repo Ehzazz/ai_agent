@@ -10,7 +10,7 @@ api_key = os.environ.get("GEMINI_API_KEY")
 
 class GeminiLLM(LLM):
     model_name: str = "gemini-2.0-flash"
-    api_key: str = os.getenv("GEMINI_API_KEY")  # or set manually
+    api_key: str = os.getenv("GEMINI_API_KEY") or ""
 
     @property
     def _llm_type(self) -> str:

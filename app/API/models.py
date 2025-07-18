@@ -1,5 +1,5 @@
 # app/models.py
-from sqlalchemy import Column, String, Text, ForeignKey, DateTime, LargeBinary
+from sqlalchemy import Column, String, Text, ForeignKey, DateTime, LargeBinary, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, relationship
 import uuid
@@ -30,6 +30,7 @@ class Session(Base):
     __tablename__ = "sessions"
     session_token = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"))
+    context_docs = Column(JSON, default=list)
 
 class UserFile(Base):
     __tablename__ = "user_files"

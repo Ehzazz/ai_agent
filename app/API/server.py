@@ -3,6 +3,7 @@ import uuid
 import asyncio
 import io
 import tempfile
+import json
 
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,11 +12,14 @@ from pydantic import BaseModel
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import JSON
 
 from .db import get_db
 from .models import User, Session, UserFile, ChatHistory
-from main import rag_agent, embed_pdf
+from main import rag_agent
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, UnstructuredWordDocumentLoader, UnstructuredExcelLoader, UnstructuredPowerPointLoader
+from utils.embedding_utils import embed_pdf, embed_docx, embed_ppt
+from utils.file_processing import get_file_type, process_file
 
 app = FastAPI(title="EQS RAG Agent")
 
@@ -112,21 +116,17 @@ async def upload_and_embed(session_token: str = Form(...), file: UploadFile = Fi
 
     try:
         pages = process_file(filename, content)
-        import io
         if file_type == 'pdf':
-            from main import embed_pdf
             embed_pdf(io.BytesIO(content), metadata={
                 "user_id": user_id,
                 "file_name": filename
             })
         elif file_type == 'docx':
-            from main import embed_docx
             embed_docx(io.BytesIO(content), metadata={
                 "user_id": user_id,
                 "file_name": filename
             })
         elif file_type == 'ppt':
-            from main import embed_ppt
             embed_ppt(io.BytesIO(content), metadata={
                 "user_id": user_id,
                 "file_name": filename
@@ -148,14 +148,31 @@ async def query_rag(data: QuestionRequest, db: AsyncSession = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=401, detail="Invalid or expired session token")
 
+    # Load context_docs from session (deserialize if needed)
+    context_docs = session.context_docs or []
+
+    # Run the agent, passing in the accumulated context
     result = await asyncio.to_thread(rag_agent.invoke, {
         "question": data.question,
-        "context_docs": [],
+        "context_docs": context_docs,
         "answer": "",
-        "user_id": session.user_id  # Pass user_id to the agent
+        "user_id": session.user_id
     })
     answer = result["answer"]
+    new_context_docs = result["context_docs"]
 
+    # Convert Document objects to dicts before saving
+    def doc_to_dict(doc):
+        return {
+            "page_content": getattr(doc, "page_content", None),
+            "metadata": getattr(doc, "metadata", None)
+        }
+
+    new_context_docs = [doc_to_dict(doc) for doc in new_context_docs]
+
+    # Update session context_docs
+    session.context_docs = new_context_docs  # type: ignore
+    db.add(session)
     chat = ChatHistory(user_id=session.user_id, question=data.question, answer=answer)
     db.add(chat)
     await db.commit()
@@ -185,56 +202,6 @@ async def get_history(session_token: str, db: AsyncSession = Depends(get_db)):
         result.append({"sender": "agent", "message": h.answer})
     return result
 
-
-def process_file(filename, content):
-    file_type = get_file_type(filename, content)
-    if file_type == 'pdf':
-        import tempfile
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-        try:
-            tmp.write(content)
-            tmp.flush()
-            tmp.close()  # Close so other processes can open it
-            loader = PyPDFLoader(tmp.name)
-            pages = loader.load()
-        finally:
-            os.unlink(tmp.name)  # Manually delete the temp file
-        return pages
-    elif file_type == 'docx':
-        import tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
-            tmp.write(content)
-            tmp.flush()
-            tmp_path = tmp.name
-        try:
-            loader = UnstructuredWordDocumentLoader(tmp_path)
-            pages = loader.load()
-        finally:
-            os.remove(tmp_path)
-        return pages
-    elif file_type == 'ppt':
-        import tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pptx") as tmp:
-            tmp.write(content)
-            tmp.flush()
-            tmp_path = tmp.name
-        # File is now closed and can be read by the loader
-        try:
-            loader = UnstructuredPowerPointLoader(tmp_path)
-            pages = loader.load()
-        finally:
-            os.remove(tmp_path)
-        return pages
-    else:
-        raise ValueError("Only PDF, DOCX, and PPTX files are supported at this time. Please convert .ppt files to .pptx before uploading.")
-
-def get_file_type(filename, content):
-    ext = filename.lower().split('.')[-1]
-    if ext == 'pdf' and content[:4] == b'%PDF':
-        return 'pdf'
-    elif ext == 'docx':
-        return 'docx'
-    elif ext == 'pptx':
-        return 'ppt'
-    else:
-        return 'unknown'
+@app.get("/")
+def root():
+    return {"message": "API is running"}
