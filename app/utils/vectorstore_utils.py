@@ -20,4 +20,12 @@ def get_vectorstore():
         connection_string=PGVECTOR_CONNECTION_STRING,
         embedding_function=embedding_model,
     )
-    return vectorstore 
+    return vectorstore
+
+# Delete all vectors for a given user_id and file_name
+def delete_vectors_for_file(user_id, file_name):
+    vectorstore = get_vectorstore()
+    # The filter must match how you store metadata during embedding
+    vectorstore.delete(
+        filter={"user_id": user_id, "file_name": file_name}
+    ) 

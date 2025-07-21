@@ -145,26 +145,33 @@
   </div>
 
   <div id="chatView" class="centered" style="display:none;">
-    <div class="chat-box-main" style="min-width:350px;max-width:500px;width:100%;">
-      <div class="chat-header">
-        <span class="user-info">👤 <span id="displayUsername"></span></span>
-        <div>
-          <button onclick="showHistory()" style="background:#0b5ed7;margin-right:8px;">Chat History</button>
-          <button onclick="refreshChat()" style="background:#aaa;">Refresh</button>
-          <button onclick="logout()" style="background:#e74c3c;margin-left:8px;">Logout</button>
+    <div style="display:flex;align-items:stretch;width:100%;max-width:900px;height:500px;">
+      <div class="sidebar" style="width:210px;background:#fff;color:#333;padding:20px 0 20px 0;border-radius:10px 0 0 10px;height:100%;border-right:2px solid #e0e0e0;">
+        <div style="font-weight:bold;font-size:17px;padding:0 24px 10px 24px;cursor:pointer;" onclick="toggleFilesSidebar()">My Files <span id='filesArrow' style='font-size:13px;'>&#9654;</span></div>
+        <div id="sidebarFilesList" style="display:none;padding:0 16px;"></div>
+      </div>
+      <div class="chat-box-main" style="min-width:350px;max-width:500px;width:100%;border-radius:0 10px 10px 0;background:#fff;height:100%;">
+        <div class="chat-header">
+          <span class="user-info">👤 <span id="displayUsername"></span></span>
+          <div>
+            <button onclick="showHistory()" style="background:#0b5ed7;margin-right:8px;">Chat History</button>
+            <button onclick="refreshChat()" style="background:#aaa;">Refresh</button>
+            <button onclick="logout()" style="background:#e74c3c;margin-left:8px;">Logout</button>
+          </div>
         </div>
-      </div>
-      <div class="chat-box" id="chatBox"></div>
-      <div class="input-area">
-        <input type="text" id="question" placeholder="Type your message..." />
-        <button onclick="ask()">Send</button>
-      </div>
-      <div class="input-area">
-        <button id="uploadBtn" style="background:#10a37f;display:flex;align-items:center;gap:6px;">
-          <span style="font-size:18px;">&#8682;</span> Upload
-        </button>
-        <input type="file" id="fileInput" accept=".pdf,.docx,.ppt,.pptx" style="display:none;" />
-        <div id="uploadStatus" style="margin-top:8px;font-size:14px;"></div>
+        <div id="selectedFileBox" style="display:none;margin-bottom:8px;font-size:15px;color:#10a37f;font-weight:bold;"></div>
+        <div class="chat-box" id="chatBox"></div>
+        <div class="input-area">
+          <input type="text" id="question" placeholder="Type your message..." />
+          <button onclick="ask()">Send</button>
+        </div>
+        <div class="input-area">
+          <button id="uploadBtn" style="background:#10a37f;display:flex;align-items:center;gap:6px;">
+            <span style="font-size:18px;">&#8682;</span> Upload
+          </button>
+          <input type="file" id="fileInput" accept=".pdf,.docx,.ppt,.pptx" style="display:none;" />
+          <div id="uploadStatus" style="margin-top:8px;font-size:14px;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -182,11 +189,91 @@
       document.getElementById("loginError").innerText = "";
     }
 
+    let selectedFileName = "";
+
     function showChat() {
       document.getElementById("loginView").style.display = "none";
       document.getElementById("chatView").style.display = "flex";
       document.getElementById("displayUsername").innerText = username;
       refreshChat();
+      populateSidebarFiles();
+      setSelectedFileBox();
+    }
+
+    function setSelectedFileBox() {
+      const box = document.getElementById("selectedFileBox");
+      if (!selectedFileName) {
+        box.style.display = "none";
+        box.innerText = "";
+      } else {
+        box.style.display = "block";
+        box.innerText = `Answering from: ${selectedFileName}`;
+      }
+    }
+
+    function toggleFilesSidebar() {
+      const list = document.getElementById("sidebarFilesList");
+      const arrow = document.getElementById("filesArrow");
+      if (list.style.display === "block") {
+        list.style.display = "none";
+        arrow.innerHTML = "&#9654;";
+      } else {
+        list.style.display = "block";
+        arrow.innerHTML = "&#9660;";
+        populateSidebarFiles();
+      }
+    }
+
+    async function populateSidebarFiles() {
+      const list = document.getElementById("sidebarFilesList");
+      list.innerHTML = "<div style='color:#888;margin-bottom:8px;cursor:pointer;' onclick='selectFile(\"\")'>All Files</div>";
+      try {
+        const res = await fetch(`${apiBase}/files?session_token=${sessionToken}`);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          data.forEach(file => {
+            const div = document.createElement("div");
+            div.style.display = "flex";
+            div.style.justifyContent = "space-between";
+            div.style.alignItems = "center";
+            div.style.marginBottom = "8px";
+            div.style.cursor = "pointer";
+            div.innerHTML = `<span onclick='selectFile("${file.file_name}")' style='flex:1;word-break:break-all;'>${file.file_name}</span> <button onclick='event.stopPropagation();deleteFileSidebar("${file.id}")' style='background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:14px;'>🗑️</button>`;
+            list.appendChild(div);
+          });
+        } else {
+          list.innerHTML += "<div style='color:#888;'>No files uploaded.</div>";
+        }
+      } catch (e) {
+        list.innerHTML += "<div style='color:#e74c3c;'>Failed to load files.</div>";
+      }
+    }
+
+    function selectFile(fileName) {
+      selectedFileName = fileName;
+      setSelectedFileBox();
+      document.getElementById("sidebarFilesList").style.display = "none";
+      document.getElementById("filesArrow").innerHTML = "&#9654;";
+    }
+
+    async function deleteFileSidebar(fileId) {
+      if (!confirm("Are you sure you want to delete this file? This cannot be undone.")) return;
+      try {
+        const res = await fetch(`${apiBase}/file/${fileId}?session_token=${sessionToken}`, {
+          method: "DELETE"
+        });
+        const data = await res.json();
+        if (res.ok) {
+          populateSidebarFiles();
+          if (selectedFileName && selectedFileName === data.file_name) {
+            selectFile("");
+          }
+        } else {
+          alert(data.message || "Delete failed.");
+        }
+      } catch (e) {
+        alert("Delete failed.");
+      }
     }
 
     async function login() {
@@ -286,10 +373,12 @@
       if (!question) return;
       showMessage("user", question);
       document.getElementById("question").value = "";
+      const body = { question, session_token: sessionToken };
+      if (selectedFileName) body.file_name = selectedFileName;
       const res = await fetch(`${apiBase}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, session_token: sessionToken })
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       showMessage("agent", data.answer || "No response");
@@ -338,6 +427,75 @@
         ask();
       }
     });
+
+    function toggleFilesDropdown(e) {
+      e.stopPropagation();
+      if (!sessionToken) return;
+      const dropdown = document.getElementById("filesDropdown");
+      if (dropdown.style.display === "block") {
+        dropdown.style.display = "none";
+      } else {
+        dropdown.style.display = "block";
+        loadFiles();
+      }
+    }
+
+    function closeFilesDropdown(e) {
+      e.stopPropagation();
+      document.getElementById("filesDropdown").style.display = "none";
+    }
+
+    // Hide dropdown when clicking outside
+    document.addEventListener("click", function(e) {
+      const dropdown = document.getElementById("filesDropdown");
+      const btn = document.getElementById("myFilesBtn");
+      if (dropdown && btn && !dropdown.contains(e.target) && e.target !== btn) {
+        dropdown.style.display = "none";
+      }
+    });
+
+    async function loadFiles() {
+      const filesList = document.getElementById("filesList");
+      filesList.innerHTML = "Loading...";
+      try {
+        const res = await fetch(`${apiBase}/files?session_token=${sessionToken}`);
+        const data = await res.json();
+        if (!Array.isArray(data) || data.length === 0) {
+          filesList.innerHTML = '<div style="color:#888;">No files uploaded.</div>';
+          return;
+        }
+        filesList.innerHTML = "";
+        data.forEach(file => {
+          const div = document.createElement("div");
+          div.style.display = "flex";
+          div.style.justifyContent = "space-between";
+          div.style.alignItems = "center";
+          div.style.marginBottom = "10px";
+          div.innerHTML = `<span style='word-break:break-all;'>${file.file_name}</span> <button onclick='deleteFile("${file.id}")' style='background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:14px;'>🗑️ Delete</button>`;
+          filesList.appendChild(div);
+        });
+      } catch (e) {
+        filesList.innerHTML = '<div style="color:#e74c3c;">Failed to load files.</div>';
+      }
+    }
+
+    async function deleteFile(fileId) {
+      if (!confirm("Are you sure you want to delete this file? This cannot be undone.")) return;
+      const filesList = document.getElementById("filesList");
+      try {
+        const res = await fetch(`${apiBase}/file/${fileId}?session_token=${sessionToken}`, {
+          method: "DELETE"
+        });
+        const data = await res.json();
+        if (res.ok) {
+          loadFiles();
+        } else {
+          alert(data.message || "Delete failed.");
+        }
+      } catch (e) {
+        alert("Delete failed.");
+      }
+    }
 
     // On load, show login
     showLogin();

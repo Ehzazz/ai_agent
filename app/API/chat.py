@@ -6,12 +6,14 @@ from .models import Session, ChatHistory
 from pydantic import BaseModel
 from main import rag_agent
 import asyncio
+from typing import Optional
 
 router = APIRouter()
 
 class QuestionRequest(BaseModel):
     question: str
     session_token: str
+    file_name: Optional[str] = None
 
 @router.post("/query")
 async def query_rag(data: QuestionRequest, db: AsyncSession = Depends(get_db)):
@@ -21,11 +23,25 @@ async def query_rag(data: QuestionRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid or expired session token")
 
     context_docs = session.context_docs or []
+
+    # Convert dicts back to Document objects if needed
+    from langchain_core.documents import Document
+    def dict_to_doc(d):
+        return Document(page_content=d.get("page_content", ""), metadata=d.get("metadata", {}))
+    context_docs = [dict_to_doc(doc) if isinstance(doc, dict) else doc for doc in context_docs]
+
+    # Prepare filter for vectorstore retrieval
+    filter_metadata = {"user_id": session.user_id}
+    if data.file_name:
+        filter_metadata["file_name"] = data.file_name  # type: ignore
+
+    # Run the agent, passing in the accumulated context and filter
     result = await asyncio.to_thread(rag_agent.invoke, {
         "question": data.question,
         "context_docs": context_docs,
         "answer": "",
-        "user_id": session.user_id
+        "user_id": session.user_id,
+        "filter_metadata": filter_metadata
     })
     answer = result["answer"]
     new_context_docs = result["context_docs"]

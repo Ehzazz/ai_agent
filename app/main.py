@@ -55,17 +55,27 @@ class AgentState(TypedDict):
 # ----------------------------
 def retrieve_docs(state: AgentState) -> AgentState:
     user_id = state.get("user_id")
+    filter_metadata = state.get("filter_metadata")
+    if not filter_metadata:
+        filter_metadata = {"user_id": user_id}
     retriever = vectorstore.as_retriever(
         search_kwargs={
             "k": 5,
-            "filter": {"user_id": user_id}
+            "filter": filter_metadata
         }
     )
     new_docs = retriever.invoke(state["question"])
     accumulated_docs = state.get("context_docs", [])
-    # Optionally deduplicate by doc id or content
-    all_docs = accumulated_docs + [doc for doc in new_docs if doc not in accumulated_docs]
-    state["context_docs"] = all_docs
+    # Filter accumulated_docs if file_name is specified
+    file_name = filter_metadata.get("file_name")
+    if file_name:
+        # Only use docs from the selected file
+        state["context_docs"] = new_docs
+    else:
+        # Default: accumulate all docs
+        all_docs = accumulated_docs + [doc for doc in new_docs if doc not in accumulated_docs]
+        state["context_docs"] = all_docs
+    print("Context docs:", [doc.metadata for doc in state["context_docs"]])
     return state
 
 # ----------------------------
