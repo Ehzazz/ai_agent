@@ -130,6 +130,190 @@
       margin-bottom: 10px;
       text-align: center;
     }
+    #uploadBtn {
+      background: #10a37f;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 5px;
+      height: 32px;
+      margin-top: 10px;
+    }
+    .main-flex-container {
+      display: flex;
+      align-items: stretch;
+      width: 100%;
+      max-width: 900px;
+      height: 500px;
+      min-height: 0;
+      position: relative;
+      justify-content: center; /* Center flex items */
+    }
+    .sidebar {
+      width: 210px;
+      background: #f8fafc;
+      color: #222;
+      padding: 20px 0 20px 0;
+      border-radius: 12px;
+      height: 112%;
+      border: 2px solid #e0e0e0;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      min-height: 0;
+      visibility: hidden; /* Hide by default, but keep space */
+    }
+    .sidebar.right {
+      border-radius: 0 12px 12px 0;
+      border-left: 2px solid #e0e0e0;
+      border-right: none;
+      /* display: none; Removed */
+    }
+    .sidebar.left {
+      border-radius: 12px 0 0 12px;
+      border-right: 2px solid #e0e0e0;
+      border-left: none;
+      /* display: none; Removed */
+    }
+    .sidebar.visible {
+      visibility: visible; /* Show sidebar by making it visible */
+    }
+    .sidebar-header {
+      font-weight: bold;
+      font-size: 18px;
+      padding: 0 24px 14px 24px;
+      color: #10a37f;
+      border-bottom: 1px solid #e0e0e0;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    .sidebar-file-item, .session-history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      background: #f8fafc;
+      font-size: 15px;
+    }
+    .sidebar-file-item:hover, .session-history-item:hover {
+      background: #e6f7ff;
+    }
+    .sidebar-file-item.selected {
+      background: #10a37f;
+      color: #fff;
+    }
+    .sidebar-file-delete-btn {
+      background: #e74c3c;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-left: 8px;
+      transition: background 0.15s;
+    }
+    .sidebar-file-delete-btn:hover {
+      background: #c0392b;
+    }
+    .chat-box-main {
+      min-width: 350px;
+      max-width: 500px;
+      width: 100%;
+      border-radius: 10px;
+      background: #fff;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      margin: 0; /* Remove auto margin */
+      z-index: 1;
+    }
+    .sidebar-toggle-btn {
+      background: #10a37f;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 15px;
+      cursor: pointer;
+      margin: 0 8px;
+      margin-bottom: 10px;
+      transition: background 0.15s;
+    }
+    .sidebar-toggle-btn:hover {
+      background: #0b5ed7;
+    }
+    .new-chat-btn {
+      background: #fff;
+      color: #10a37f;
+      border: 2px solid #10a37f;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 15px;
+      cursor: pointer;
+      margin: 0 8px;
+      margin-bottom: 10px;
+      transition: background 0.15s;
+    }
+    .new-chat-btn:hover {
+      background: #10a37f;
+      color: #fff;
+    }
+    /* Session History Modal */
+    #sessionHistoryModal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.25);
+      align-items: center;
+      justify-content: center;
+    }
+    #sessionHistoryBox {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+      padding: 24px 18px;
+      min-width: 320px;
+      max-width: 400px;
+      width: 100%;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .session-history-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #10a37f;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .session-history-item {
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #f8fafc;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 15px;
+    }
+    .session-history-item:hover {
+      background: #e6f7ff;
+    }
+    .session-history-close {
+      float: right;
+      font-size: 18px;
+      color: #e74c3c;
+      cursor: pointer;
+      margin-top: -8px;
+    }
   </style>
 </head>
 <body>
@@ -145,17 +329,21 @@
   </div>
 
   <div id="chatView" class="centered" style="display:none;">
-    <div style="display:flex;align-items:stretch;width:100%;max-width:900px;height:500px;">
-      <div class="sidebar" style="width:210px;background:#fff;color:#333;padding:20px 0 20px 0;border-radius:10px 0 0 10px;height:100%;border-right:2px solid #e0e0e0;">
-        <div style="font-weight:bold;font-size:17px;padding:0 24px 10px 24px;cursor:pointer;" onclick="toggleFilesSidebar()">My Files <span id='filesArrow' style='font-size:13px;'>&#9654;</span></div>
-        <div id="sidebarFilesList" style="display:none;padding:0 16px;"></div>
+    <div class="main-flex-container">
+      <!-- History Sidebar (left) -->
+      <div class="sidebar left" id="historySidebar">
+        <div class="sidebar-header">History Sessions</div>
+        <div id="historySessionsList"></div>
       </div>
-      <div class="chat-box-main" style="min-width:350px;max-width:500px;width:100%;border-radius:0 10px 10px 0;background:#fff;height:100%;">
+      <!-- Chat Box Main -->
+      <div class="chat-box-main">
         <div class="chat-header">
           <span class="user-info">👤 <span id="displayUsername"></span></span>
           <div>
-            <button onclick="showHistory()" style="background:#0b5ed7;margin-right:8px;">Chat History</button>
+            <button class="new-chat-btn" onclick="startNewChat()">New Chat</button>
+            <button class="sidebar-toggle-btn" onclick="toggleHistorySidebar()">History</button>
             <button onclick="refreshChat()" style="background:#aaa;">Refresh</button>
+            <button class="sidebar-toggle-btn" onclick="toggleFilesSidebar()">Files</button>
             <button onclick="logout()" style="background:#e74c3c;margin-left:8px;">Logout</button>
           </div>
         </div>
@@ -173,6 +361,20 @@
           <div id="uploadStatus" style="margin-top:8px;font-size:14px;"></div>
         </div>
       </div>
+      <!-- File Sidebar (right) -->
+      <div class="sidebar right" id="fileSidebar">
+        <div class="sidebar-header">My Files</div>
+        <div id="sidebarFilesList" style="padding:0 16px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session History Modal -->
+  <div id="sessionHistoryModal">
+    <div id="sessionHistoryBox">
+      <span class="session-history-close" onclick="closeSessionHistory()">&times;</span>
+      <div class="session-history-title">Chat Sessions</div>
+      <div id="sessionList"></div>
     </div>
   </div>
 
@@ -189,6 +391,7 @@
       document.getElementById("loginError").innerText = "";
     }
 
+    let selectedFileId = "";
     let selectedFileName = "";
 
     function showChat() {
@@ -202,7 +405,7 @@
 
     function setSelectedFileBox() {
       const box = document.getElementById("selectedFileBox");
-      if (!selectedFileName) {
+      if (!selectedFileId) {
         box.style.display = "none";
         box.innerText = "";
       } else {
@@ -211,34 +414,17 @@
       }
     }
 
-    function toggleFilesSidebar() {
-      const list = document.getElementById("sidebarFilesList");
-      const arrow = document.getElementById("filesArrow");
-      if (list.style.display === "block") {
-        list.style.display = "none";
-        arrow.innerHTML = "&#9654;";
-      } else {
-        list.style.display = "block";
-        arrow.innerHTML = "&#9660;";
-        populateSidebarFiles();
-      }
-    }
-
     async function populateSidebarFiles() {
       const list = document.getElementById("sidebarFilesList");
-      list.innerHTML = "<div style='color:#888;margin-bottom:8px;cursor:pointer;' onclick='selectFile(\"\")'>All Files</div>";
+      list.innerHTML = "<div style='color:#888;margin-bottom:8px;cursor:pointer;' onclick='selectFile(\"\", \"\")'>All Files</div>";
       try {
         const res = await fetch(`${apiBase}/files?session_token=${sessionToken}`);
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           data.forEach(file => {
             const div = document.createElement("div");
-            div.style.display = "flex";
-            div.style.justifyContent = "space-between";
-            div.style.alignItems = "center";
-            div.style.marginBottom = "8px";
-            div.style.cursor = "pointer";
-            div.innerHTML = `<span onclick='selectFile("${file.file_name}")' style='flex:1;word-break:break-all;'>${file.file_name}</span> <button onclick='event.stopPropagation();deleteFileSidebar("${file.id}")' style='background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:14px;'>🗑️</button>`;
+            div.classList.add("sidebar-file-item");
+            div.innerHTML = `<span onclick='selectFile("${file.id}", "${file.file_name}")' style='flex:1;word-break:break-all;'>${file.file_name}</span> <button onclick='event.stopPropagation();deleteFileSidebar("${file.id}")' class='sidebar-file-delete-btn'>🗑️</button>`;
             list.appendChild(div);
           });
         } else {
@@ -249,7 +435,8 @@
       }
     }
 
-    function selectFile(fileName) {
+    function selectFile(fileId, fileName) {
+      selectedFileId = fileId;
       selectedFileName = fileName;
       setSelectedFileBox();
       document.getElementById("sidebarFilesList").style.display = "none";
@@ -264,9 +451,9 @@
         });
         const data = await res.json();
         if (res.ok) {
-          populateSidebarFiles();
-          if (selectedFileName && selectedFileName === data.file_name) {
-            selectFile("");
+          populateSidebarFiles(); // Refresh sidebar after delete
+          if (selectedFileId && selectedFileId === fileId) {
+            selectFile("", "");
           }
         } else {
           alert(data.message || "Delete failed.");
@@ -374,7 +561,7 @@
       showMessage("user", question);
       document.getElementById("question").value = "";
       const body = { question, session_token: sessionToken };
-      if (selectedFileName) body.file_name = selectedFileName;
+      if (selectedFileId) body.file_id = selectedFileId;
       const res = await fetch(`${apiBase}/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -405,6 +592,7 @@
       if (res.ok) {
         uploadStatus.style.color = '#10a37f';
         uploadStatus.innerText = data.message || "File uploaded successfully!";
+        populateSidebarFiles(); // Refresh sidebar after upload
       } else {
         uploadStatus.style.color = '#e74c3c';
         uploadStatus.innerText = data.message || "Upload failed.";
@@ -428,72 +616,99 @@
       }
     });
 
-    function toggleFilesDropdown(e) {
-      e.stopPropagation();
-      if (!sessionToken) return;
-      const dropdown = document.getElementById("filesDropdown");
-      if (dropdown.style.display === "block") {
-        dropdown.style.display = "none";
-      } else {
-        dropdown.style.display = "block";
-        loadFiles();
+    // Sidebar toggling logic
+    function toggleFilesSidebar() {
+      const sidebar = document.getElementById("fileSidebar");
+      sidebar.classList.toggle("visible");
+    }
+    function toggleHistorySidebar() {
+      const sidebar = document.getElementById("historySidebar");
+      sidebar.classList.toggle("visible");
+      if (sidebar.classList.contains("visible")) {
+        loadSessionListSidebar();
       }
     }
-
-    function closeFilesDropdown(e) {
-      e.stopPropagation();
-      document.getElementById("filesDropdown").style.display = "none";
-    }
-
-    // Hide dropdown when clicking outside
-    document.addEventListener("click", function(e) {
-      const dropdown = document.getElementById("filesDropdown");
-      const btn = document.getElementById("myFilesBtn");
-      if (dropdown && btn && !dropdown.contains(e.target) && e.target !== btn) {
-        dropdown.style.display = "none";
-      }
-    });
-
-    async function loadFiles() {
-      const filesList = document.getElementById("filesList");
-      filesList.innerHTML = "Loading...";
+    // Load session list for history sidebar
+    async function loadSessionListSidebar() {
+      const sessionListDiv = document.getElementById("historySessionsList");
+      sessionListDiv.innerHTML = "Loading...";
       try {
-        const res = await fetch(`${apiBase}/files?session_token=${sessionToken}`);
+        const res = await fetch(`${apiBase}/sessions?session_token=${sessionToken}`);
         const data = await res.json();
         if (!Array.isArray(data) || data.length === 0) {
-          filesList.innerHTML = '<div style="color:#888;">No files uploaded.</div>';
+          sessionListDiv.innerHTML = '<div style="color:#888;">No sessions found.</div>';
           return;
         }
-        filesList.innerHTML = "";
-        data.forEach(file => {
+        sessionListDiv.innerHTML = "";
+        data.forEach(session => {
           const div = document.createElement("div");
-          div.style.display = "flex";
-          div.style.justifyContent = "space-between";
-          div.style.alignItems = "center";
-          div.style.marginBottom = "10px";
-          div.innerHTML = `<span style='word-break:break-all;'>${file.file_name}</span> <button onclick='deleteFile("${file.id}")' style='background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:14px;'>🗑️ Delete</button>`;
-          filesList.appendChild(div);
+          div.className = "session-history-item";
+          div.innerText = session.first_question || session.session_token;
+          div.onclick = function() { loadSessionChat(session.session_token); };
+          sessionListDiv.appendChild(div);
         });
       } catch (e) {
-        filesList.innerHTML = '<div style="color:#e74c3c;">Failed to load files.</div>';
+        sessionListDiv.innerHTML = '<div style="color:#e74c3c;">Failed to load sessions.</div>';
       }
     }
 
-    async function deleteFile(fileId) {
-      if (!confirm("Are you sure you want to delete this file? This cannot be undone.")) return;
-      const filesList = document.getElementById("filesList");
+    // Session History Modal logic
+    function showSessionHistory() {
+      document.getElementById("sessionHistoryModal").style.display = "flex";
+      loadSessionList();
+    }
+    function closeSessionHistory() {
+      document.getElementById("sessionHistoryModal").style.display = "none";
+    }
+    async function loadSessionList() {
+      const sessionListDiv = document.getElementById("sessionList");
+      sessionListDiv.innerHTML = "Loading...";
       try {
-        const res = await fetch(`${apiBase}/file/${fileId}?session_token=${sessionToken}`, {
-          method: "DELETE"
-        });
+        const res = await fetch(`${apiBase}/sessions?session_token=${sessionToken}`);
         const data = await res.json();
-        if (res.ok) {
-          loadFiles();
-        } else {
-          alert(data.message || "Delete failed.");
+        if (!Array.isArray(data) || data.length === 0) {
+          sessionListDiv.innerHTML = '<div style="color:#888;">No sessions found.</div>';
+          return;
         }
+        sessionListDiv.innerHTML = "";
+        data.forEach(session => {
+          const div = document.createElement("div");
+          div.className = "session-history-item";
+          div.innerText = session.first_question || session.session_token;
+          div.onclick = function() { loadSessionChat(session.session_token); closeSessionHistory(); };
+          sessionListDiv.appendChild(div);
+        });
       } catch (e) {
-        alert("Delete failed.");
+        sessionListDiv.innerHTML = '<div style="color:#e74c3c;">Failed to load sessions.</div>';
+      }
+    }
+    async function loadSessionChat(sessionTokenToLoad) {
+      if (!sessionTokenToLoad) return;
+      const res = await fetch(`${apiBase}/chat-history-by-session?session_token=${sessionTokenToLoad}`);
+      const data = await res.json();
+      const chatBox = document.getElementById("chatBox");
+      chatBox.innerHTML = "";
+      data.forEach(msg => {
+        showMessage(msg.sender, msg.message);
+      });
+    }
+
+    async function startNewChat() {
+      // Request a new session from the backend
+      const res = await fetch(`${apiBase}/new-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_token: sessionToken })
+      });
+      const data = await res.json();
+      if (data.session_token) {
+        sessionToken = data.session_token;
+        refreshChat();
+        selectedFileId = "";
+        selectedFileName = "";
+        setSelectedFileBox();
+      } else {
+        alert("Failed to start a new chat session.");
       }
     }
 

@@ -8,6 +8,7 @@ from utils.embedding_utils import embed_pdf, embed_docx, embed_ppt
 from utils.file_processing import get_file_type, process_file
 from utils.vectorstore_utils import delete_vectors_for_file
 import io
+import asyncio
 
 router = APIRouter()
 
@@ -33,24 +34,41 @@ async def upload_and_embed(session_token: str = Form(...), file: UploadFile = Fi
     )
     db.add(user_file)
     await db.commit()
+    await db.refresh(user_file)  # Get the generated id
+    file_id = str(user_file.id)
 
     try:
         pages = process_file(filename, content)
         if file_type == 'pdf':
-            embed_pdf(io.BytesIO(content), metadata={
-                "user_id": user_id,
-                "file_name": filename
-            })
+            await asyncio.to_thread(
+                embed_pdf,
+                io.BytesIO(content),
+                {
+                    "user_id": user_id,
+                    "file_id": file_id,
+                    "file_name": filename
+                }
+            )
         elif file_type == 'docx':
-            embed_docx(io.BytesIO(content), metadata={
-                "user_id": user_id,
-                "file_name": filename
-            })
+            await asyncio.to_thread(
+                embed_docx,
+                io.BytesIO(content),
+                {
+                    "user_id": user_id,
+                    "file_id": file_id,
+                    "file_name": filename
+                }
+            )
         elif file_type == 'ppt':
-            embed_ppt(io.BytesIO(content), metadata={
-                "user_id": user_id,
-                "file_name": filename
-            })
+            await asyncio.to_thread(
+                embed_ppt,
+                io.BytesIO(content),
+                {
+                    "user_id": user_id,
+                    "file_id": file_id,
+                    "file_name": filename
+                }
+            )
         return {"message": f"✅ File '{filename}' uploaded & embedded successfully."}
     except Exception as e:
         import traceback
@@ -81,7 +99,7 @@ async def delete_file(file_id: str = Path(...), session_token: str = Query(...),
     if not user_file:
         raise HTTPException(status_code=404, detail="File not found")
     # Delete vector embeddings for this file
-    delete_vectors_for_file(user_id=user_id, file_name=user_file.file_name)
+    await asyncio.to_thread(delete_vectors_for_file, user_id=user_id, file_name=user_file.file_name)
     await db.delete(user_file)
     await db.commit()
     return {"message": f"✅ File '{user_file.file_name}' and its embeddings deleted."} 

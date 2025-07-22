@@ -28,6 +28,7 @@ async def register_user(data: UserRequest, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login")
 async def login_user(data: UserRequest, db: AsyncSession = Depends(get_db)):
+    print("--- LOGIN ENDPOINT HIT ---")
     stmt = select(User).where(User.username == data.username)
     result = await db.execute(stmt)
     user = result.scalar()

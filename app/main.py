@@ -35,7 +35,6 @@ if not PGVECTOR_CONNECTION_STRING:
     raise ValueError("VECTORSTORE_DATABASE_URL environment variable is not set")
 
 # Vector store setup (collection is shared, metadata is filtered per user/file)
-vectorstore = get_vectorstore()
 
 # Language model
 llm = GeminiLLM()
@@ -54,10 +53,12 @@ class AgentState(TypedDict):
 # Node 1: Retrieve documents
 # ----------------------------
 def retrieve_docs(state: AgentState) -> AgentState:
+    from utils.vectorstore_utils import get_vectorstore
     user_id = state.get("user_id")
     filter_metadata = state.get("filter_metadata")
     if not filter_metadata:
         filter_metadata = {"user_id": user_id}
+    vectorstore = get_vectorstore()
     retriever = vectorstore.as_retriever(
         search_kwargs={
             "k": 5,
@@ -65,14 +66,14 @@ def retrieve_docs(state: AgentState) -> AgentState:
         }
     )
     new_docs = retriever.invoke(state["question"])
-    accumulated_docs = state.get("context_docs", [])
-    # Filter accumulated_docs if file_name is specified
-    file_name = filter_metadata.get("file_name")
-    if file_name:
-        # Only use docs from the selected file
-        state["context_docs"] = new_docs
+    file_id = filter_metadata.get("file_id")
+    if file_id:
+        # Strictly filter all docs by file_id, including accumulated docs
+        filtered_docs = [doc for doc in new_docs if doc.metadata.get("file_id") == file_id]
+        state["context_docs"] = filtered_docs
     else:
         # Default: accumulate all docs
+        accumulated_docs = state.get("context_docs", [])
         all_docs = accumulated_docs + [doc for doc in new_docs if doc not in accumulated_docs]
         state["context_docs"] = all_docs
     print("Context docs:", [doc.metadata for doc in state["context_docs"]])
