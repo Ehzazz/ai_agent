@@ -8,6 +8,7 @@ from main import rag_agent
 import asyncio
 from typing import Optional
 import uuid
+from sqlalchemy import delete
 
 router = APIRouter()
 
@@ -105,13 +106,40 @@ async def list_sessions(session_token: str, db: AsyncSession = Depends(get_db)):
     current_session = result.scalar_one_or_none()
     if not current_session:
         raise HTTPException(status_code=401, detail="Invalid session token")
+    # Only include sessions that have at least one chat history entry
     result = await db.execute(
         select(Session)
         .where(Session.user_id == current_session.user_id)
+        .where(Session.session_token.in_(
+            select(ChatHistory.session_token).distinct()
+        ))
         .order_by(Session.first_question.isnot(None).desc(), Session.context_docs.isnot(None).desc())
     )
     sessions = result.scalars().all()
     return [{"session_token": s.session_token, "first_question": s.first_question} for s in sessions]
+
+@router.delete("/sessions/{session_token_to_delete}")
+async def delete_session(session_token_to_delete: str, session_token: str, db: AsyncSession = Depends(get_db)):
+    # Verify the user owns the session they are trying to delete from
+    session_result = await db.execute(select(Session).where(Session.session_token == session_token))
+    current_session = session_result.scalar_one_or_none()
+    if not current_session:
+        raise HTTPException(status_code=401, detail="Invalid session token")
+
+    # Find the session to delete
+    session_to_delete_result = await db.execute(select(Session).where(Session.session_token == session_token_to_delete, Session.user_id == current_session.user_id))
+    session_to_delete = session_to_delete_result.scalar_one_or_none()
+
+    if not session_to_delete:
+        raise HTTPException(status_code=404, detail="Session not found or access denied")
+
+    # Delete associated chat history
+    await db.execute(delete(ChatHistory).where(ChatHistory.session_token == session_token_to_delete))
+    
+    # Delete the session
+    await db.delete(session_to_delete)
+    await db.commit()
+    return {"message": "Session and all associated chat history deleted successfully"}
 
 @router.get("/chat-history-by-session")
 async def get_history_by_session(session_token: str, db: AsyncSession = Depends(get_db)):

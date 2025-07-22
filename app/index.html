@@ -307,12 +307,34 @@
     .session-history-item:hover {
       background: #e6f7ff;
     }
+    .session-delete-btn {
+      background: none;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0 5px;
+      visibility: hidden; /* Hidden by default */
+    }
+    .session-history-item:hover .session-delete-btn {
+      visibility: visible; /* Show on hover */
+    }
     .session-history-close {
       float: right;
       font-size: 18px;
       color: #e74c3c;
       cursor: pointer;
       margin-top: -8px;
+    }
+    .delete-chat-icon {
+      cursor: pointer;
+      color: #aaa;
+      font-size: 14px;
+      margin-left: 8px;
+      display: none; /* Hidden by default */
+    }
+    .msg:hover .delete-chat-icon {
+      display: inline; /* Show on hover */
     }
   </style>
 </head>
@@ -512,13 +534,40 @@
       showLogin();
     }
 
-    function showMessage(sender, message) {
+    function showMessage(sender, message, messageId) {
       const box = document.getElementById("chatBox");
       const msgDiv = document.createElement("div");
       msgDiv.classList.add("msg", sender);
-      msgDiv.innerHTML = `<span class="sender">${sender === 'user' ? username : 'AI Agent'}:</span><span class="text">${message}</span>`;
+      msgDiv.id = `msg-${messageId}`; // Add an ID for easy removal
+
+      const deleteIcon = `<span class="delete-chat-icon" onclick="deleteChatMessage('${messageId}')">🗑️</span>`;
+
+      msgDiv.innerHTML = `
+        <span class="sender">${sender === 'user' ? username : 'AI Agent'}:</span>
+        <span class="text">${message} ${deleteIcon}</span>
+      `;
       box.appendChild(msgDiv);
       box.scrollTop = box.scrollHeight;
+    }
+
+    async function deleteChatMessage(messageId) {
+      if (!confirm("Are you sure you want to delete this message?")) return;
+      try {
+        const res = await fetch(`${apiBase}/chat-history/${messageId}?session_token=${sessionToken}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          const msgToDelete = document.getElementById(`msg-${messageId}`);
+          if (msgToDelete) {
+            msgToDelete.remove();
+          }
+        } else {
+          const data = await res.json();
+          alert(data.detail || "Failed to delete message.");
+        }
+      } catch (e) {
+        alert("An error occurred while deleting the message.");
+      }
     }
 
     async function loadHistory() {
@@ -550,7 +599,7 @@
       const chatBox = document.getElementById("chatBox");
       chatBox.innerHTML = "";
       data.forEach(msg => {
-        showMessage(msg.sender, msg.message);
+        showMessage(msg.sender, msg.message, msg.id);
       });
     }
 
@@ -558,7 +607,13 @@
       if (!sessionToken) return;
       const question = document.getElementById("question").value;
       if (!question) return;
-      showMessage("user", question);
+      // Note: We don't have an ID for the user's question before it's saved,
+      // so the delete icon won't appear on it until the page is reloaded.
+      // This is an acceptable tradeoff for simplicity.
+      const tempId = `temp-${Date.now()}`;
+      showMessage("user", question, tempId);
+      document.getElementById(`msg-${tempId}`).querySelector('.delete-chat-icon').style.display = 'none';
+
       document.getElementById("question").value = "";
       const body = { question, session_token: sessionToken };
       if (selectedFileId) body.file_id = selectedFileId;
@@ -568,7 +623,12 @@
         body: JSON.stringify(body)
       });
       const data = await res.json();
-      showMessage("agent", data.answer || "No response");
+      // After getting a response, we don't have the new history ID yet.
+      // A full refresh of the chat history would be needed to make the new messages deletable.
+      // For now, let's just show the message without a delete icon.
+      const agentTempId = `temp-agent-${Date.now()}`;
+      showMessage("agent", data.answer || "No response", agentTempId);
+      document.getElementById(`msg-${agentTempId}`).querySelector('.delete-chat-icon').style.display = 'none';
     }
 
     async function uploadFile() {
@@ -643,12 +703,41 @@
         data.forEach(session => {
           const div = document.createElement("div");
           div.className = "session-history-item";
-          div.innerText = session.first_question || session.session_token;
-          div.onclick = function() { loadSessionChat(session.session_token); };
+         div.innerHTML = `
+           <span style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" onclick="loadSessionChat('${session.session_token}')">
+             ${session.first_question || session.session_token}
+           </span>
+           <button class="session-delete-btn" onclick="deleteSession('${session.session_token}', event)">🗑️</button>
+         `;
           sessionListDiv.appendChild(div);
         });
       } catch (e) {
         sessionListDiv.innerHTML = '<div style="color:#e74c3c;">Failed to load sessions.</div>';
+      }
+    }
+
+    async function deleteSession(sessionTokenToDelete, event) {
+      event.stopPropagation(); // Prevent the session from loading when clicking delete
+      if (!confirm("Are you sure you want to delete this entire chat session? This cannot be undone.")) return;
+
+      try {
+        const res = await fetch(`${apiBase}/sessions/${sessionTokenToDelete}?session_token=${sessionToken}`, {
+          method: 'DELETE',
+        });
+
+        if (res.ok) {
+          // If the deleted session was the active one, start a new chat
+          if (sessionToken === sessionTokenToDelete) {
+            startNewChat();
+          }
+          // Refresh the session list in the sidebar
+          loadSessionListSidebar();
+        } else {
+          const data = await res.json();
+          alert(data.detail || "Failed to delete session.");
+        }
+      } catch (e) {
+        alert("An error occurred while deleting the session.");
       }
     }
 
@@ -689,7 +778,7 @@
       const chatBox = document.getElementById("chatBox");
       chatBox.innerHTML = "";
       data.forEach(msg => {
-        showMessage(msg.sender, msg.message);
+        showMessage(msg.sender, msg.message, msg.id);
       });
     }
 
